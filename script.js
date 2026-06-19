@@ -36,10 +36,9 @@
 
     let globalStockData = [];
     let alerts = [];
-    let useFinCalApi = true; // ✅ เริ่มต้นใช้ FinCal API (ฟรี)
 
     // ============================================================
-    //  TAB NAVIGATION
+    //  TAB NAVIGATION (เหลือ 4 แท็บ)
     // ============================================================
     function initTabs() {
         const btns = document.querySelectorAll('.tab-btn');
@@ -47,7 +46,6 @@
             dashboard: document.getElementById('tabDashboard'),
             heatmap: document.getElementById('tabHeatmap'),
             market: document.getElementById('tabMarket'),
-            calendar: document.getElementById('tabCalendar'),
             signals: document.getElementById('tabSignals')
         };
         btns.forEach(btn => {
@@ -59,7 +57,6 @@
                     contents[key].classList.toggle('active', key === tab);
                 });
                 if (tab === 'market') fetchMarketOverview();
-                if (tab === 'calendar') fetchEconomicCalendar();
                 if (tab === 'signals') generateTradingSignals();
             });
         });
@@ -279,222 +276,7 @@
     }
 
     // ============================================================
-    //  3. ECONOMIC CALENDAR (FinCal API - ฟรี ไม่ต้องใช้ Key)
-    // ============================================================
-    async function fetchEconomicCalendar() {
-        const container = document.getElementById('calendarContainer');
-        if (!container) return;
-        container.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;">⏳ กำลังโหลด...</div>';
-
-        try {
-            let data = null;
-            let source = '';
-
-            if (useFinCalApi) {
-                // ใช้ FinCal API (ฟรี ไม่ต้องใช้ Key)
-                const response = await fetch('https://fincalapi.com/api/calendar', {
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                });
-                
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const result = await response.json();
-                
-                // FinCal API อาจส่งมาเป็น array หรือ object
-                if (Array.isArray(result)) {
-                    data = result;
-                } else if (result.data && Array.isArray(result.data)) {
-                    data = result.data;
-                } else {
-                    throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
-                }
-                source = 'FinCal API (ฟรี)';
-            } else {
-                // Fallback: Finnhub (ถ้าผู้ใช้ต้องการ)
-                if (!finnhubApiKey) {
-                    container.innerHTML = `
-                        <div style="text-align:center; color:#f87171; padding:20px;">
-                            ⚠️ ต้องใช้ Finnhub API Key
-                            <br/><br/>
-                            <button onclick="changeFinnhubApiKey()" style="padding:8px 20px; border-radius:10px; border:none; background:#2563eb; color:#fff; font-weight:600; cursor:pointer;">
-                                🔑 ใส่ Key
-                            </button>
-                            <br/><br/>
-                            <button onclick="toggleCalendarSource()" style="padding:6px 16px; border-radius:10px; border:none; background:#2d3748; color:#cbd5e1; font-weight:600; cursor:pointer; font-size:12px;">
-                                🔄 กลับไป FinCal API (ฟรี)
-                            </button>
-                        </div>
-                    `;
-                    return;
-                }
-                const today = new Date();
-                const fromDate = new Date(today); fromDate.setDate(today.getDate() - 1);
-                const toDate = new Date(today); toDate.setDate(today.getDate() + 7);
-                const from = fromDate.toISOString().split('T')[0];
-                const to = toDate.toISOString().split('T')[0];
-                const url = `https://finnhub.io/api/v1/economic_calendar?from=${from}&to=${to}&token=${finnhubApiKey}`;
-                const res = await fetch(url);
-                const text = await res.text();
-                try {
-                    const parsed = JSON.parse(text);
-                    if (parsed && parsed.economicCalendar) {
-                        data = parsed.economicCalendar;
-                    } else {
-                        throw new Error('ไม่มีข้อมูล');
-                    }
-                } catch(e) {
-                    container.innerHTML = `
-                        <div style="text-align:center; color:#f87171; padding:20px;">
-                            ❌ Finnhub API Error - กรุณาเปลี่ยนเป็น FinCal API
-                            <br/><br/>
-                            <button onclick="toggleCalendarSource()" style="padding:8px 20px; border-radius:10px; border:none; background:#2563eb; color:#fff; font-weight:600; cursor:pointer;">
-                                🔄 ใช้ FinCal API (ฟรี)
-                            </button>
-                        </div>
-                    `;
-                    return;
-                }
-                source = 'Finnhub API';
-            }
-
-            if (!data || data.length === 0) {
-                container.innerHTML = `
-                    <div style="text-align:center; color:#94a3b8; padding:20px;">
-                        📭 ไม่มีข้อมูลปฏิทินเศรษฐกิจ
-                        <br/><span style="font-size:11px; color:#64748b;">แหล่งข้อมูล: ${source}</span>
-                    </div>
-                `;
-                return;
-            }
-
-            // แปลงข้อมูลให้เป็นรูปแบบเดียวกัน
-            const events = data.map(item => {
-                // FinCal API format
-                if (item.date || item.event) {
-                    return {
-                        date: item.date || item.datetime || item.releaseDate,
-                        event: item.event || item.name || item.title || item.description || '-',
-                        country: item.country || item.region || item.currency || '-',
-                        impact: item.impact || item.importance || item.priority || 'Medium',
-                        actual: item.actual || item.actualValue || '-',
-                        forecast: item.forecast || item.expected || '-',
-                        previous: item.previous || item.prev || '-'
-                    };
-                }
-                // Finnhub format
-                return {
-                    date: item.date,
-                    event: item.event || '-',
-                    country: item.country || '-',
-                    impact: item.impact || 'Low',
-                    actual: item.actual || '-',
-                    forecast: item.forecast || '-',
-                    previous: item.previous || '-'
-                };
-            });
-
-            // เรียงตามวันที่
-            events.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-            let html = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
-                    <span style="font-size:12px; color:#94a3b8;">📊 แหล่งข้อมูล: ${source}</span>
-                    <span style="font-size:11px; color:#64748b;">${events.length} รายการ</span>
-                </div>
-                <table class="cal-table">
-                    <thead>
-                        <tr>
-                            <th>📅 วันที่</th>
-                            <th>📌 เหตุการณ์</th>
-                            <th>🌍 ประเทศ</th>
-                            <th>📊 ผล</th>
-                            <th>📈 คาดการณ์</th>
-                            <th>📉 ก่อนหน้า</th>
-                            <th>⚡ Impact</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            events.slice(0, 20).forEach(item => {
-                const date = item.date ? new Date(item.date).toLocaleDateString('th-TH') : '-';
-                const impact = (item.impact || 'Low').toString().toLowerCase();
-                const impactClass = `impact-${impact}`;
-                
-                const actual = item.actual || '-';
-                const forecast = item.forecast || '-';
-                const previous = item.previous || '-';
-                
-                let actualClass = '';
-                if (actual !== '-' && forecast !== '-') {
-                    const numActual = parseFloat(actual);
-                    const numForecast = parseFloat(forecast);
-                    if (!isNaN(numActual) && !isNaN(numForecast)) {
-                        actualClass = numActual >= numForecast ? 'positive' : 'negative';
-                    }
-                }
-
-                html += `
-                    <tr>
-                        <td style="font-size:11px; white-space:nowrap;">${date}</td>
-                        <td style="font-weight:500; max-width:200px; word-break:break-word;">${item.event}</td>
-                        <td>${item.country}</td>
-                        <td class="actual ${actualClass}">${actual}</td>
-                        <td>${forecast}</td>
-                        <td>${previous}</td>
-                        <td class="${impactClass}" style="text-align:center;">${impact.toUpperCase()}</td>
-                    </tr>
-                `;
-            });
-
-            html += '</tbody></table>';
-            container.innerHTML = html;
-
-        } catch (error) {
-            console.error('Calendar error:', error);
-            container.innerHTML = `
-                <div style="text-align:center; color:#f87171; padding:20px;">
-                    ❌ โหลดปฏิทินล้มเหลว: ${error.message}
-                    <br/><br/>
-                    <button onclick="toggleCalendarSource()" style="padding:8px 20px; border-radius:10px; border:none; background:#2563eb; color:#fff; font-weight:600; cursor:pointer;">
-                        🔄 สลับแหล่งข้อมูล
-                    </button>
-                    <br/><br/>
-                    <button onclick="fetchEconomicCalendar()" style="padding:6px 16px; border-radius:10px; border:none; background:#2d3748; color:#cbd5e1; font-weight:600; cursor:pointer; font-size:12px;">
-                        🔄 ลองใหม่
-                    </button>
-                </div>
-            `;
-        }
-    }
-
-    // ===== สลับแหล่งข้อมูลปฏิทิน =====
-    function toggleCalendarSource() {
-        useFinCalApi = !useFinCalApi;
-        const msg = useFinCalApi ? '✅ เปลี่ยนเป็น FinCal API (ฟรี)' : '✅ เปลี่ยนเป็น Finnhub API';
-        alert(msg);
-        fetchEconomicCalendar();
-    }
-
-    // ===== เปลี่ยน Finnhub API Key (เผื่อใช้) =====
-    function changeFinnhubApiKey() {
-        const newKey = prompt('🔑 ใส่ Finnhub API Key ใหม่ (สมัครฟรีที่ finnhub.io/register)\nKey ปัจจุบัน: ' + finnhubApiKey);
-        if (newKey && newKey.length > 10) {
-            finnhubApiKey = newKey;
-            localStorage.setItem('finnhubApiKey', newKey);
-            alert('✅ เปลี่ยน API Key สำเร็จ!');
-            if (!useFinCalApi) fetchEconomicCalendar();
-            if (currentTicker) fetchNews(currentTicker);
-            return true;
-        } else if (newKey !== null) {
-            alert('⚠️ API Key ต้องมีความยาวมากกว่า 10 ตัวอักษร');
-        }
-        return false;
-    }
-
-    // ============================================================
-    //  4. TRADING SIGNALS
+    //  3. TRADING SIGNALS
     // ============================================================
     async function generateTradingSignals() {
         const container = document.getElementById('signalsContainer');
@@ -915,7 +697,6 @@
             try {
                 data = JSON.parse(text);
             } catch(e) {
-                // Key หมดอายุ
                 newsContainer.innerHTML = `
                     <div style="text-align:center; padding:20px; color:#f87171;">
                         ❌ API Key หมดอายุ กรุณาเปลี่ยน Key
@@ -960,6 +741,21 @@
             `;
             console.error('News error:', err);
         }
+    }
+
+    // ===== เปลี่ยน Finnhub API Key =====
+    function changeFinnhubApiKey() {
+        const newKey = prompt('🔑 ใส่ Finnhub API Key ใหม่ (สมัครฟรีที่ finnhub.io/register)\nKey ปัจจุบัน: ' + finnhubApiKey);
+        if (newKey && newKey.length > 10) {
+            finnhubApiKey = newKey;
+            localStorage.setItem('finnhubApiKey', newKey);
+            alert('✅ เปลี่ยน API Key สำเร็จ!');
+            if (currentTicker) fetchNews(currentTicker);
+            return true;
+        } else if (newKey !== null) {
+            alert('⚠️ API Key ต้องมีความยาวมากกว่า 10 ตัวอักษร');
+        }
+        return false;
     }
 
     // ============================================================
@@ -1171,21 +967,7 @@
 
         // Refresh Buttons
         document.getElementById('refreshMarketBtn')?.addEventListener('click', fetchMarketOverview);
-        document.getElementById('refreshCalendarBtn')?.addEventListener('click', fetchEconomicCalendar);
         document.getElementById('refreshSignalsBtn')?.addEventListener('click', generateTradingSignals);
-
-        // ✅ ปุ่มเปลี่ยนแหล่งข้อมูลปฏิทิน
-        document.getElementById('changeDataSourceBtn')?.addEventListener('click', function() {
-            const current = useFinCalApi ? 'FinCal API (ฟรี)' : 'Finnhub API';
-            const choice = confirm(
-                `📅 แหล่งข้อมูลปัจจุบัน: ${current}\n\n` +
-                `คลิก OK เพื่อเปลี่ยนเป็น ${useFinCalApi ? 'Finnhub API' : 'FinCal API (ฟรี)'}\n` +
-                `คลิก Cancel เพื่อยกเลิก`
-            );
-            if (choice) {
-                toggleCalendarSource();
-            }
-        });
 
         loadAlerts();
         updateAlertBadge();
