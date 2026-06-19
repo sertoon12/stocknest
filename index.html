@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>StockNest Ultimate Pro</title>
     
-    <!-- ✅ PWA Manifest -->
+    <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#131622" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -16,12 +16,18 @@
 </head>
 <body>
     <div class="container">
-        <!-- ✅ Header + ปุ่มติดตั้ง -->
+        <!-- Header + ปุ่มติดตั้ง + ปุ่มขออนุญาตแจ้งเตือน -->
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
             <h2 style="margin:0;">⚡ StockNest PRO</h2>
-            <button id="installBtn" style="display:none; padding:8px 16px; border-radius:12px; border:none; background:linear-gradient(135deg,#2563eb,#3b82f6); color:#fff; font-weight:600; font-size:13px; cursor:pointer; box-shadow:0 4px 16px rgba(59,130,246,0.3);">
-                📲 ติดตั้ง
-            </button>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <button id="requestNotifBtn" style="padding:6px 14px; border-radius:10px; border:none; background:#2d3748; color:#cbd5e1; font-weight:600; font-size:11px; cursor:pointer; transition:all 0.2s ease;">
+                    🔔 ขออนุญาตแจ้งเตือน
+                </button>
+                <span id="notifStatus" style="font-size:11px; color:#94a3b8; padding:2px 8px; border-radius:12px; background:#1a1f30;">⏳ กำลังตรวจสอบ...</span>
+                <button id="installBtn" style="display:none; padding:8px 16px; border-radius:12px; border:none; background:linear-gradient(135deg,#2563eb,#3b82f6); color:#fff; font-weight:600; font-size:13px; cursor:pointer; box-shadow:0 4px 16px rgba(59,130,246,0.3);">
+                    📲 ติดตั้ง
+                </button>
+            </div>
         </div>
 
         <!-- Tab Navigation (4 tabs) -->
@@ -250,15 +256,14 @@
             </div>
         </div>
 
-        <!-- ✅ ข้อความแจ้งติดตั้ง (ถ้าติดตั้งแล้วจะซ่อน) -->
+        <!-- ข้อความแจ้งติดตั้ง -->
         <div id="installBanner" style="display:none; margin-top:16px; padding:10px 16px; background:linear-gradient(135deg,#1a1f30,#131622); border-radius:14px; border:1px solid #2a314a; text-align:center; font-size:13px; color:#94a3b8;">
             📲 <span id="installStatus">แอพพร้อมติดตั้งแล้ว</span>
         </div>
     </div>
 
-    <!-- ✅ Service Worker Registration -->
+    <!-- Service Worker Registration -->
     <script>
-        // ลงทะเบียน Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 navigator.serviceWorker.register('service-worker.js')
@@ -271,7 +276,7 @@
             });
         }
 
-        // ✅ จัดการปุ่มติดตั้ง
+        // จัดการปุ่มติดตั้ง
         let deferredPrompt;
         const installBtn = document.getElementById('installBtn');
         const installBanner = document.getElementById('installBanner');
@@ -301,12 +306,10 @@
                 }
                 deferredPrompt = null;
             } else {
-                // ถ้าไม่มี prompt (เช่นติดตั้งไปแล้ว หรือเบราว์เซอร์ไม่รองรับ)
                 alert('📲 เบราว์เซอร์นี้ไม่รองรับการติดตั้ง หรือติดตั้งไปแล้ว\n\n💡 วิธีติดตั้งด้วยตัวเอง:\n• Chrome: กด ⋮ → ติดตั้งแอป\n• Safari: กด ⎔ → เพิ่มลงหน้าจอหลัก');
             }
         });
 
-        // เมื่อติดตั้งเสร็จแล้ว
         window.addEventListener('appinstalled', function() {
             installBtn.style.display = 'none';
             installStatus.textContent = '✅ ติดตั้งสำเร็จ! ขอบคุณที่ใช้ StockNest';
