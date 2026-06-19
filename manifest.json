@@ -1,0 +1,19 @@
+{
+    "name": "StockNest PRO - หุ้นและลงทุน",
+    "short_name": "StockNest",
+    "description": "แอพวิเคราะห์หุ้นและสัญญาณซื้อขาย สำหรับนักลงทุน",
+    "start_url": "index.html",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#0c0e17",
+    "theme_color": "#131622",
+    "categories": ["finance", "investment", "stocks"],
+    "icons": [
+        {
+            "src": "icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        }
+    ]
+}
