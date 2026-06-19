@@ -38,7 +38,7 @@
     let alerts = [];
 
     // ============================================================
-    //  TAB NAVIGATION (เหลือ 4 แท็บ)
+    //  TAB NAVIGATION
     // ============================================================
     function initTabs() {
         const btns = document.querySelectorAll('.tab-btn');
@@ -63,36 +63,69 @@
     }
 
     // ============================================================
-    //  1. ALERT SYSTEM + STATUS BAR NOTIFICATION
+    //  1. NOTIFICATION SYSTEM (Status Bar)
     // ============================================================
     function requestNotificationPermission() {
         if (!('Notification' in window)) {
-            console.log('เบราว์เซอร์นี้ไม่รองรับ Notification API');
+            alert('⚠️ เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน');
             return;
         }
-        if (Notification.permission === 'granted') {
-            console.log('ได้รับอนุญาตแล้ว');
+
+        const status = Notification.permission;
+        if (status === 'granted') {
+            alert('✅ ได้รับอนุญาตให้แจ้งเตือนแล้ว');
+            updateNotificationStatus();
             return;
         }
-        if (Notification.permission !== 'denied') {
-            Notification.requestPermission().then(function(permission) {
-                if (permission === 'granted') {
-                    console.log('อนุญาตให้แจ้งเตือนแล้ว');
-                    try {
-                        new Notification('🔔 StockNest พร้อมแจ้งเตือน', {
-                            body: 'ระบบจะแจ้งเตือนเมื่อราคามาเป้าหมาย',
-                            icon: '📈'
-                        });
-                    } catch(e) {}
-                } else {
-                    console.log('ไม่อนุญาตให้แจ้งเตือน');
-                }
-            });
+        if (status === 'denied') {
+            alert('🔕 การแจ้งเตือนถูกบล็อกแล้ว\nกรุณาไปที่ Settings ของเบราว์เซอร์ -> Privacy -> Notifications แล้วเปิดให้ StockNest\n\n📱 บน Android: ไปที่ Settings -> Apps -> Chrome -> Permissions -> Notifications แล้วเปิด');
+            return;
+        }
+
+        // status === 'default'
+        Notification.requestPermission().then(function(permission) {
+            if (permission === 'granted') {
+                alert('✅ อนุญาตให้แจ้งเตือนแล้ว!');
+                updateNotificationStatus();
+                try {
+                    new Notification('🔔 StockNest พร้อมแจ้งเตือน', {
+                        body: 'ระบบจะแจ้งเตือนเมื่อราคามาเป้าหมาย',
+                        icon: '📈',
+                        tag: 'test'
+                    });
+                } catch(e) {}
+            } else {
+                alert('⚠️ ไม่อนุญาตให้แจ้งเตือน');
+                updateNotificationStatus();
+            }
+        });
+    }
+
+    function updateNotificationStatus() {
+        const statusEl = document.getElementById('notifStatus');
+        if (!statusEl) return;
+        if (!('Notification' in window)) {
+            statusEl.textContent = '❌ ไม่รองรับ';
+            statusEl.style.color = '#f87171';
+            return;
+        }
+        const perm = Notification.permission;
+        if (perm === 'granted') {
+            statusEl.textContent = '✅ เปิดอยู่';
+            statusEl.style.color = '#4ade80';
+        } else if (perm === 'denied') {
+            statusEl.textContent = '🔕 ถูกบล็อก';
+            statusEl.style.color = '#f87171';
+        } else {
+            statusEl.textContent = '⏳ ยังไม่ได้ขอ';
+            statusEl.style.color = '#facc15';
         }
     }
 
     function showNotification(msg) {
-        // 1. Toast (ในเว็บ)
+        console.log('🔔 showNotification:', msg);
+
+        // 1. Toast (หน้าเว็บ)
         const toast = document.createElement('div');
         toast.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#2563eb; color:#fff; padding:14px 24px; border-radius:16px; font-weight:600; z-index:9999; box-shadow:0 8px 30px rgba(0,0,0,0.5); max-width:90%; text-align:center; animation:slideUp 0.3s ease;';
         toast.textContent = msg;
@@ -103,19 +136,44 @@
             setTimeout(() => toast.remove(), 300);
         }, 5000);
 
-        // 2. Status Bar Notification
-        if ('Notification' in window && Notification.permission === 'granted') {
-            try {
-                const notification = new Notification('📊 StockNest Alert', {
-                    body: msg,
-                    icon: '📈',
-                    vibrate: [200, 100, 200]
-                });
-                setTimeout(() => notification.close(), 8000);
-            } catch(e) {}
+        // 2. System Notification (Status Bar)
+        if (!('Notification' in window)) {
+            console.log('❌ Notification API ไม่รองรับ');
+            return;
+        }
+
+        if (Notification.permission !== 'granted') {
+            console.log('❌ ไม่ได้รับอนุญาต (permission:', Notification.permission, ')');
+            // แจ้งเตือนผ่าน Toast
+            const notifyToast = document.createElement('div');
+            notifyToast.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#e67e22; color:#fff; padding:10px 20px; border-radius:12px; font-weight:500; z-index:9999; box-shadow:0 4px 16px rgba(0,0,0,0.3); max-width:90%; text-align:center; font-size:13px;';
+            notifyToast.textContent = '⚠️ ยังไม่ได้อนุญาตให้แจ้งเตือน (คลิก "ขออนุญาตแจ้งเตือน" ที่มุม)';
+            document.body.appendChild(notifyToast);
+            setTimeout(() => {
+                notifyToast.style.opacity = '0';
+                notifyToast.style.transition = 'opacity 0.5s';
+                setTimeout(() => notifyToast.remove(), 500);
+            }, 4000);
+            return;
+        }
+
+        try {
+            const notification = new Notification('📊 StockNest Alert', {
+                body: msg,
+                icon: '📈',
+                vibrate: [200, 100, 200],
+                tag: Date.now().toString()
+            });
+            setTimeout(() => notification.close(), 8000);
+            console.log('✅ System notification sent');
+        } catch(e) {
+            console.error('❌ System notification error:', e);
         }
     }
 
+    // ============================================================
+    //  2. ALERT SYSTEM
+    // ============================================================
     function loadAlerts() {
         const stored = localStorage.getItem('stockNestAlerts');
         alerts = stored ? JSON.parse(stored) : [];
@@ -176,7 +234,7 @@
         });
     }
 
-    // ✅ ทดสอบเสียง + ขออนุญาต Status Bar
+    // ทดสอบเสียง + Status Bar
     function testAlertSound() {
         function doTest() {
             enableAudio();
@@ -205,6 +263,7 @@
                 if (permission === 'granted') {
                     doTest();
                     notificationRequested = true;
+                    updateNotificationStatus();
                 } else {
                     alert('⚠️ กรุณาอนุญาตการแจ้งเตือนในเบราว์เซอร์ (คลิกปุ่มอนุญาต)');
                 }
@@ -215,7 +274,7 @@
     }
 
     // ============================================================
-    //  2. MARKET OVERVIEW
+    //  3. MARKET OVERVIEW
     // ============================================================
     async function fetchMarketOverview() {
         const indices = [
@@ -276,7 +335,7 @@
     }
 
     // ============================================================
-    //  3. TRADING SIGNALS
+    //  4. TRADING SIGNALS
     // ============================================================
     async function generateTradingSignals() {
         const container = document.getElementById('signalsContainer');
@@ -948,11 +1007,17 @@
     function initApp() {
         initTabs();
 
+        // ✅ ปุ่มขออนุญาตแจ้งเตือน
+        document.getElementById('requestNotifBtn')?.addEventListener('click', function() {
+            requestNotificationPermission();
+        });
+
         // Alert Events
         document.getElementById('addAlertBtn')?.addEventListener('click', function() {
             if (!notificationRequested && Notification.permission === 'default') {
                 Notification.requestPermission();
                 notificationRequested = true;
+                updateNotificationStatus();
             }
             const ticker = document.getElementById('alertTicker').value.trim().toUpperCase();
             const price = document.getElementById('alertPrice').value;
@@ -972,11 +1037,15 @@
         loadAlerts();
         updateAlertBadge();
 
+        // ✅ อัปเดตสถานะการแจ้งเตือน
+        updateNotificationStatus();
+
         // Search
         document.getElementById('searchBtn').addEventListener('click', function() {
             if (!notificationRequested && Notification.permission === 'default') {
                 Notification.requestPermission();
                 notificationRequested = true;
+                updateNotificationStatus();
             }
             fetchStockDataAndUpdateUI();
         });
