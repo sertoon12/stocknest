@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>StockNest Ultimate Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="container">
+        <h2>⚡ StockNest PRO | Day Trading & DCA</h2>
+
+        <!-- Tab Navigation (5 tabs) -->
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+            <button class="tab-btn" data-tab="heatmap">🔥 Heatmap</button>
+            <button class="tab-btn" data-tab="market">🌍 ตลาด</button>
+            <button class="tab-btn" data-tab="calendar">📅 ปฏิทิน</button>
+            <button class="tab-btn" data-tab="signals">📈 สัญญาณ</button>
+        </div>
+
+        <!-- ===== TAB: Dashboard ===== -->
+        <div id="tabDashboard" class="tab-content active">
+            <div class="input-group">
+                <input type="text" id="tickerInput" value="" placeholder="เช่น NVDA, TSLA, AAPL" />
+                <button id="searchBtn">🔍 วิเคราะห์</button>
+            </div>
+
+            <div class="auto-refresh-bar">
+                <span id="refreshTimestamp" class="timestamp">อัปเดตล่าสุด: -</span>
+            </div>
+
+            <div class="fav-row">
+                <button id="favStarBtn" class="fav-star-btn">☆</button>
+                <div id="favoritesList" class="favorites-list"></div>
+            </div>
+
+            <!-- Alert Section + ปุ่มทดสอบ -->
+            <div class="alert-section" style="background:linear-gradient(145deg,#171b2a,#131622); border-radius:20px; padding:16px 18px; margin-bottom:18px; border:1px solid #2a314a;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <span style="font-size:14px; font-weight:600; color:#f1f5f9;">⏰ แจ้งเตือนราคา</span>
+                    <span id="alertBadge" style="font-size:11px; background:#2563eb; padding:2px 12px; border-radius:12px; color:#fff;">0 รายการ</span>
+                </div>
+                <div class="alert-input-group" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+                    <input type="text" id="alertTicker" placeholder="หุ้น" style="flex:1; min-width:70px; padding:8px 12px; border-radius:10px; border:1px solid #2a314a; background:#090b11; color:#fff; font-size:13px;">
+                    <input type="number" id="alertPrice" placeholder="ราคา" style="flex:1; min-width:80px; padding:8px 12px; border-radius:10px; border:1px solid #2a314a; background:#090b11; color:#fff; font-size:13px;">
+                    <select id="alertCondition" style="padding:8px 12px; border-radius:10px; border:1px solid #2a314a; background:#090b11; color:#fff; font-size:13px;">
+                        <option value=">=">ขึ้นถึง ≥</option>
+                        <option value="<=">ลงถึง ≤</option>
+                    </select>
+                    <button id="addAlertBtn" style="padding:8px 16px; border-radius:10px; border:none; background:linear-gradient(135deg,#2563eb,#3b82f6); color:#fff; font-weight:600; cursor:pointer;">➕ เพิ่ม</button>
+                    <button id="testAlertBtn" style="padding:8px 16px; border-radius:10px; border:none; background:linear-gradient(135deg,#e67e22,#f39c12); color:#fff; font-weight:600; cursor:pointer;">🔊 ทดสอบ</button>
+                </div>
+                <div id="alertList" style="display:flex; flex-wrap:wrap; gap:8px; min-height:30px;">
+                    <span style="color:#64748b; font-size:12px;">ยังไม่มีรายการแจ้งเตือน</span>
+                </div>
+            </div>
+
+            <!-- EMA Settings -->
+            <div class="ema-settings">
+                <div class="ema-settings-title">📈 เส้น EMA (ปรับได้ 1-200 วัน)</div>
+                <div class="ema-input-group">
+                    <span class="ema-dot ema-dot-1"></span>
+                    <label>EMA 1</label>
+                    <input type="number" id="emaPeriod1" min="1" max="200" value="20" step="1" />
+                </div>
+                <div class="ema-input-group">
+                    <span class="ema-dot ema-dot-2"></span>
+                    <label>EMA 2</label>
+                    <input type="number" id="emaPeriod2" min="1" max="200" value="50" step="1" />
+                </div>
+                <div class="ema-input-group">
+                    <span class="ema-dot ema-dot-3"></span>
+                    <label>EMA 3</label>
+                    <input type="number" id="emaPeriod3" min="1" max="200" value="200" step="1" />
+                </div>
+                <button id="applyEmaBtn" class="apply-ema-btn">🔄 อัปเดตค่า EMA</button>
+            </div>
+
+            <div class="news-section">
+                <div class="news-header-title">
+                    📰 ข่าวสารล่าสุด
+                    <button id="translateNewsBtn" class="translate-news-btn">🌐 แปลข่าวเป็นไทย</button>
+                </div>
+                <div id="newsContainer" class="news-container">
+                    <div style="text-align:center; padding:20px; color:#94a3b8;">📰 ใส่ Finnhub API Key เพื่อดูข่าว</div>
+                </div>
+            </div>
+
+            <div id="loading" class="loading">🔍 กรุณาพิมพ์ชื่อหุ้น (เช่น NVDA, TSLA, AAPL) แล้วกด Enter</div>
+
+            <div id="resultBox" class="result-box" style="display:none;">
+                <div class="webull-chart-card">
+                    <div class="webull-stock-header">
+                        <div class="header-main-row">
+                            <span class="webull-ticker" id="w-ticker">-</span>
+                            <span class="webull-live-price" id="w-live-price">$0.00</span>
+                            <span class="webull-change" id="w-change">+0.00 (+0.00%)</span>
+                        </div>
+                        <div class="ext-hours-row" id="w-ext-container" style="display: none;">
+                            <span class="ext-label" id="w-ext-label">After Hours:</span>
+                            <span class="ext-price" id="w-ext-price">$0.00</span>
+                            <span class="ext-change" id="w-ext-change">0.00 (0.00%)</span>
+                        </div>
+                        <div class="header-stats-grid">
+                            <div>สูงสุด <span class="c-up" id="w-high">0.00</span></div>
+                            <div>ราคาเปิด <span id="w-open">0.00</span></div>
+                            <div>ต่ำสุด <span class="c-down" id="w-low">0.00</span></div>
+                            <div>ก่อนปิด <span id="w-prev-close">0.00</span></div>
+                        </div>
+                    </div>
+
+                    <div class="chart-indicator-header" id="emaHeader"><span class="ind-label">EMA</span></div>
+                    <div id="tradingviewContainer" class="chart-container">
+                        <div id="tradingviewWidget" style="height:100%; width:100%;"></div>
+                    </div>
+
+                    <div id="marketStatus" class="market-status">
+                        <div class="status-item">
+                            <span class="status-label">📊 RSI</span>
+                            <span id="rsiStatus" class="status-value neutral">กำลังโหลด...</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">📈 แนวโน้ม</span>
+                            <span id="trendStatus" class="status-value neutral">กำลังโหลด...</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">📍 ระดับราคา</span>
+                            <span id="srStatus" class="status-value neutral">กำลังโหลด...</span>
+                        </div>
+                    </div>
+
+                    <div class="timeframe-selector">
+                        <button class="tf-btn" data-interval="1D">1 วัน</button>
+                        <button class="tf-btn" data-interval="1W">1 สัปดาห์</button>
+                        <button class="tf-btn" data-interval="1M">1 เดือน</button>
+                        <button class="tf-btn active" data-interval="3M">3 เดือน</button>
+                        <button class="tf-btn" data-interval="6M">6 เดือน</button>
+                        <button class="tf-btn" data-interval="12M">12 เดือน</button>
+                    </div>
+                </div>
+
+                <div class="section-title">🧭 สรุปสถานะสำหรับการออม (DCA Status)</div>
+                <div id="dcaStatusBox" class="dca-status-card">
+                    <div class="dca-badge" id="v-dcaBadge">-</div>
+                    <div class="dca-desc" id="v-dcaDesc">-</div>
+                    <div class="long-dca-zone">
+                        <div class="long-dca-title">🎯 โซนแนวรับปลอดภัย สะสมระยะยาว</div>
+                        <div class="long-dca-value" id="v-longDcaZone">-</div>
+                        <div class="long-dca-tip">*เน้นสะสมเมื่อราคาไหลเข้าสู่กรอบนี้</div>
+                    </div>
+                </div>
+
+                <div class="section-title">📊 แนวรับ-แนวต้านสำคัญแนวนอน (รอบ 14 วัน)</div>
+                <div class="level resistance"><div class="level-info"><span class="level-name">แนวต้านสำคัญ (High 14 วัน)</span></div><span class="price-value" id="v-h14">-</span></div>
+                <div class="level support"><div class="level-info"><span class="level-name">แนวรับสำคัญ (Low 14 วัน)</span></div><span class="price-value" id="v-l14">-</span></div>
+
+                <div class="section-title">⏱️ กรอบทำกำไร-รับของระหว่างวัน (Pivot Points)</div>
+                <div class="trade-grid">
+                    <div class="level resistance"><div class="level-info"><span class="level-name">แนวต้าน 2 (R2)</span></div><span class="price-value" id="v-r2">-</span></div>
+                    <div class="level resistance"><div class="level-info"><span class="level-name">แนวต้าน 1 (R1)</span></div><span class="price-value" id="v-r1">-</span></div>
+                    <div class="level pivot"><div class="level-info"><span class="level-name">จุดหมุนกลาง (Pivot Point)</span></div><span class="price-value" id="v-pp">-</span></div>
+                    <div class="level support"><div class="level-info"><span class="level-name">แนวรับ 1 (S1)</span></div><span class="price-value" id="v-s1">-</span></div>
+                    <div class="level support"><div class="level-info"><span class="level-name">แนวรับ 2 (S2)</span></div><span class="price-value" id="v-s2">-</span></div>
+                </div>
+
+                <div class="section-title">📈 วิเคราะห์ราคาชนเส้น EMA</div>
+                <div id="emaProCardsContainer"></div>
+            </div>
+        </div>
+
+        <!-- ===== TAB: Heatmap ===== -->
+        <div id="tabHeatmap" class="tab-content">
+            <div class="heatmap-header" style="padding: 2px 6px; margin-bottom: 4px;">
+                <h3 style="font-size: 12px; margin: 0;">🔥 S&P 500 Heatmap</h3>
+                <span style="font-size: 10px; color:#94a3b8;">เปิดบน TradingView</span>
+            </div>
+            <div id="heatmapChartContainer" style="height:85vh; width:100%; border-radius:12px; overflow:hidden; border:1px solid #2a314a; background:#131622; padding:4px; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+                <div style="text-align:center; color:#94a3b8; padding:20px; max-width:400px;">
+                    <div style="font-size:72px; margin-bottom:20px;">🔥</div>
+                    <h2 style="color:#f1f5f9; margin:0 0 12px 0; font-size:22px;">S&P 500 Heatmap</h2>
+                    <p style="color:#94a3b8; margin:0 0 24px 0; font-size:14px; line-height:1.6;">
+                        เปิดดู Heatmap แบบเต็มจอบนเว็บไซต์ TradingView
+                    </p>
+                    <a href="https://th.tradingview.com/heatmap/stock/#{%22dataSource%22:%22SPX500%22,%22blockColor%22:%22change%22,%22blockSize%22:%22market_cap_basic%22,%22grouping%22:%22sector%22}" 
+                       target="_blank" rel="noopener noreferrer"
+                       style="display:inline-block; padding:16px 48px; background:linear-gradient(135deg, #2563eb, #3b82f6); color:white; border-radius:14px; text-decoration:none; font-weight:700; font-size:18px; box-shadow:0 4px 24px rgba(59,130,246,0.3); transition:transform 0.2s, box-shadow 0.2s;">
+                        🚀 เปิด Heatmap
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TAB: ตลาด ===== -->
+        <div id="tabMarket" class="tab-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3 style="margin:0; color:#f1f5f9; font-size:16px;">🌍 ภาพรวมตลาด</h3>
+                <button id="refreshMarketBtn" class="refresh-heatmap-btn" style="font-size:11px;">🔄 รีเฟรช</button>
+            </div>
+            <div id="indicesContainer" style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px;">
+                <div class="index-card" style="background:#1e2337; padding:12px; border-radius:14px; border:1px solid #2a314a; text-align:center;">
+                    <div style="color:#94a3b8; font-size:11px;">S&P 500</div>
+                    <div id="idx-spx" style="font-size:20px; font-weight:700; color:#fff;">-</div>
+                    <div id="idx-spx-chg" style="font-size:13px;">-</div>
+                </div>
+                <div class="index-card" style="background:#1e2337; padding:12px; border-radius:14px; border:1px solid #2a314a; text-align:center;">
+                    <div style="color:#94a3b8; font-size:11px;">NASDAQ</div>
+                    <div id="idx-ixic" style="font-size:20px; font-weight:700; color:#fff;">-</div>
+                    <div id="idx-ixic-chg" style="font-size:13px;">-</div>
+                </div>
+                <div class="index-card" style="background:#1e2337; padding:12px; border-radius:14px; border:1px solid #2a314a; text-align:center;">
+                    <div style="color:#94a3b8; font-size:11px;">Dow Jones</div>
+                    <div id="idx-dji" style="font-size:20px; font-weight:700; color:#fff;">-</div>
+                    <div id="idx-dji-chg" style="font-size:13px;">-</div>
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div style="background:#1e2337; padding:12px; border-radius:14px; border:1px solid #2a314a;">
+                    <div style="color:#4ade80; font-weight:600; font-size:13px; margin-bottom:8px;">🚀 ขาขึ้นแรง</div>
+                    <div id="topGainers" style="font-size:13px; color:#94a3b8;">กำลังโหลด...</div>
+                </div>
+                <div style="background:#1e2337; padding:12px; border-radius:14px; border:1px solid #2a314a;">
+                    <div style="color:#f87171; font-weight:600; font-size:13px; margin-bottom:8px;">📉 ขาลงแรง</div>
+                    <div id="topLosers" style="font-size:13px; color:#94a3b8;">กำลังโหลด...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TAB: ปฏิทิน (พร้อมปุ่มเปลี่ยนแหล่งข้อมูล) ===== -->
+        <div id="tabCalendar" class="tab-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
+                <h3 style="margin:0; color:#f1f5f9; font-size:16px;">📅 ปฏิทินเศรษฐกิจ</h3>
+                <div style="display:flex; gap:6px;">
+                    <button id="refreshCalendarBtn" class="refresh-heatmap-btn" style="font-size:11px;">🔄 รีเฟรช</button>
+                    <button id="changeDataSourceBtn" class="refresh-heatmap-btn" style="font-size:11px; background:#e67e22;">🔁 แหล่งข้อมูล</button>
+                </div>
+            </div>
+            <div id="calendarContainer" style="background:#1e2337; border-radius:14px; border:1px solid #2a314a; padding:12px; overflow-x:auto;">
+                <div style="text-align:center; color:#94a3b8; padding:20px;">⏳ กำลังโหลดข้อมูลปฏิทิน...</div>
+            </div>
+        </div>
+
+        <!-- ===== TAB: สัญญาณ ===== -->
+        <div id="tabSignals" class="tab-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3 style="margin:0; color:#f1f5f9; font-size:16px;">📈 สัญญาณซื้อขาย</h3>
+                <button id="refreshSignalsBtn" class="refresh-heatmap-btn" style="font-size:11px;">🔄 รีเฟรช</button>
+            </div>
+            <div id="signalsContainer" style="display:flex; flex-direction:column; gap:12px;">
+                <div style="text-align:center; color:#94a3b8; padding:20px;">⏳ กำลังวิเคราะห์สัญญาณ...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
