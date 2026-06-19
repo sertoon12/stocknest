@@ -4,12 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>StockNest Ultimate Pro</title>
+    
+    <!-- ✅ PWA Manifest -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#131622" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
     <div class="container">
-        <h2>⚡ StockNest PRO | Day Trading & DCA</h2>
+        <!-- ✅ Header + ปุ่มติดตั้ง -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+            <h2 style="margin:0;">⚡ StockNest PRO</h2>
+            <button id="installBtn" style="display:none; padding:8px 16px; border-radius:12px; border:none; background:linear-gradient(135deg,#2563eb,#3b82f6); color:#fff; font-weight:600; font-size:13px; cursor:pointer; box-shadow:0 4px 16px rgba(59,130,246,0.3);">
+                📲 ติดตั้ง
+            </button>
+        </div>
 
         <!-- Tab Navigation (4 tabs) -->
         <div class="tab-nav">
@@ -35,7 +48,7 @@
                 <div id="favoritesList" class="favorites-list"></div>
             </div>
 
-            <!-- Alert Section + ปุ่มทดสอบ -->
+            <!-- Alert Section -->
             <div class="alert-section" style="background:linear-gradient(145deg,#171b2a,#131622); border-radius:20px; padding:16px 18px; margin-bottom:18px; border:1px solid #2a314a;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                     <span style="font-size:14px; font-weight:600; color:#f1f5f9;">⏰ แจ้งเตือนราคา</span>
@@ -237,7 +250,70 @@
             </div>
         </div>
 
+        <!-- ✅ ข้อความแจ้งติดตั้ง (ถ้าติดตั้งแล้วจะซ่อน) -->
+        <div id="installBanner" style="display:none; margin-top:16px; padding:10px 16px; background:linear-gradient(135deg,#1a1f30,#131622); border-radius:14px; border:1px solid #2a314a; text-align:center; font-size:13px; color:#94a3b8;">
+            📲 <span id="installStatus">แอพพร้อมติดตั้งแล้ว</span>
+        </div>
     </div>
+
+    <!-- ✅ Service Worker Registration -->
+    <script>
+        // ลงทะเบียน Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(function(registration) {
+                        console.log('Service Worker ลงทะเบียนสำเร็จ:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('Service Worker ลงทะเบียนล้มเหลว:', error);
+                    });
+            });
+        }
+
+        // ✅ จัดการปุ่มติดตั้ง
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+        const installBanner = document.getElementById('installBanner');
+        const installStatus = document.getElementById('installStatus');
+
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = 'inline-block';
+            installBanner.style.display = 'block';
+            installStatus.textContent = '📲 คลิก "ติดตั้ง" เพื่อติดตั้งแอพบนหน้าจอหลัก';
+            console.log('beforeinstallprompt ถูกเรียก');
+        });
+
+        installBtn.addEventListener('click', async function() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const result = await deferredPrompt.userChoice;
+                console.log('User choice:', result.outcome);
+                if (result.outcome === 'accepted') {
+                    installBtn.style.display = 'none';
+                    installStatus.textContent = '✅ ติดตั้งสำเร็จ! ขอบคุณที่ใช้ StockNest';
+                    installStatus.style.color = '#4ade80';
+                } else {
+                    installStatus.textContent = '❌ ยกเลิกการติดตั้ง';
+                    installStatus.style.color = '#f87171';
+                }
+                deferredPrompt = null;
+            } else {
+                // ถ้าไม่มี prompt (เช่นติดตั้งไปแล้ว หรือเบราว์เซอร์ไม่รองรับ)
+                alert('📲 เบราว์เซอร์นี้ไม่รองรับการติดตั้ง หรือติดตั้งไปแล้ว\n\n💡 วิธีติดตั้งด้วยตัวเอง:\n• Chrome: กด ⋮ → ติดตั้งแอป\n• Safari: กด ⎔ → เพิ่มลงหน้าจอหลัก');
+            }
+        });
+
+        // เมื่อติดตั้งเสร็จแล้ว
+        window.addEventListener('appinstalled', function() {
+            installBtn.style.display = 'none';
+            installStatus.textContent = '✅ ติดตั้งสำเร็จ! ขอบคุณที่ใช้ StockNest';
+            installStatus.style.color = '#4ade80';
+            console.log('App installed successfully');
+        });
+    </script>
 
     <script src="script.js"></script>
 </body>
