@@ -18,6 +18,11 @@
     let lastRealTimePrice = null;
     let notificationRequested = false;
 
+    // ✅ ตัวแปรสำหรับ EMA Alert
+    let globalEmaValues = { ema20: 0, ema50: 0, ema200: 0 };
+    let globalPrevEmaValues = { ema20: 0, ema50: 0, ema200: 0 };
+    let lastEmaAlertTime = 0;
+
     const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwedpW60H2YRM5vX01rvaygtt03MDq7cdV-YY0C4pkpjFSDsl8HXuTBUjFRINMnpaj3/exec';
 
     // ===== S&P 500 Stocks =====
@@ -63,7 +68,7 @@
     }
 
     // ============================================================
-    //  1. NOTIFICATION SYSTEM (Status Bar)
+    //  NOTIFICATION SYSTEM
     // ============================================================
     function requestNotificationPermission() {
         if (!('Notification' in window)) {
@@ -82,7 +87,6 @@
             return;
         }
 
-        // status === 'default'
         Notification.requestPermission().then(function(permission) {
             if (permission === 'granted') {
                 alert('✅ อนุญาตให้แจ้งเตือนแล้ว!');
@@ -137,14 +141,9 @@
         }, 5000);
 
         // 2. System Notification (Status Bar)
-        if (!('Notification' in window)) {
-            console.log('❌ Notification API ไม่รองรับ');
-            return;
-        }
-
+        if (!('Notification' in window)) return;
         if (Notification.permission !== 'granted') {
             console.log('❌ ไม่ได้รับอนุญาต (permission:', Notification.permission, ')');
-            // แจ้งเตือนผ่าน Toast
             const notifyToast = document.createElement('div');
             notifyToast.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#e67e22; color:#fff; padding:10px 20px; border-radius:12px; font-weight:500; z-index:9999; box-shadow:0 4px 16px rgba(0,0,0,0.3); max-width:90%; text-align:center; font-size:13px;';
             notifyToast.textContent = '⚠️ ยังไม่ได้อนุญาตให้แจ้งเตือน (คลิก "ขออนุญาตแจ้งเตือน" ที่มุม)';
@@ -172,7 +171,7 @@
     }
 
     // ============================================================
-    //  2. ALERT SYSTEM
+    //  ALERT SYSTEM
     // ============================================================
     function loadAlerts() {
         const stored = localStorage.getItem('stockNestAlerts');
@@ -274,7 +273,7 @@
     }
 
     // ============================================================
-    //  3. MARKET OVERVIEW
+    //  2. MARKET OVERVIEW
     // ============================================================
     async function fetchMarketOverview() {
         const indices = [
@@ -335,7 +334,7 @@
     }
 
     // ============================================================
-    //  4. TRADING SIGNALS
+    //  3. TRADING SIGNALS
     // ============================================================
     async function generateTradingSignals() {
         const container = document.getElementById('signalsContainer');
@@ -523,6 +522,58 @@
     }
 
     // ============================================================
+    //  EMA ALERT CHECK
+    // ============================================================
+    function checkEmaAlerts(price, ticker) {
+        if (!ticker || ticker !== currentTicker) return;
+        const now = Date.now();
+        if (now - lastEmaAlertTime < 30000) return; // กันแจ้งซ้ำใน 30 วินาที
+
+        const tolerance = 0.005; // 0.5%
+        const ema20 = globalEmaValues.ema20;
+        const ema50 = globalEmaValues.ema50;
+        const ema200 = globalEmaValues.ema200;
+        if (!ema20 || !ema50 || !ema200) return;
+
+        // ตรวจสอบราคาชน EMA
+        if (Math.abs(price - ema20) / ema20 < tolerance) {
+            showNotification(`📊 ${ticker} ราคา $${price.toFixed(2)} ชนเส้น EMA20 ($${ema20.toFixed(2)})`);
+            playAlertBeep();
+            lastEmaAlertTime = now;
+            return;
+        }
+        if (Math.abs(price - ema50) / ema50 < tolerance) {
+            showNotification(`📊 ${ticker} ราคา $${price.toFixed(2)} ชนเส้น EMA50 ($${ema50.toFixed(2)})`);
+            playAlertBeep();
+            lastEmaAlertTime = now;
+            return;
+        }
+        if (Math.abs(price - ema200) / ema200 < tolerance) {
+            showNotification(`📊 ${ticker} ราคา $${price.toFixed(2)} ชนเส้น EMA200 ($${ema200.toFixed(2)})`);
+            playAlertBeep();
+            lastEmaAlertTime = now;
+            return;
+        }
+
+        // ตรวจสอบ Golden Cross / Death Cross
+        const prevEma20 = globalPrevEmaValues.ema20;
+        const prevEma50 = globalPrevEmaValues.ema50;
+        if (prevEma20 && prevEma50 && ema20 && ema50) {
+            if (prevEma20 <= prevEma50 && ema20 > ema50) {
+                showNotification(`📈 Golden Cross! ${ticker} EMA20 ($${ema20.toFixed(2)}) ตัดขึ้นเหนือ EMA50 ($${ema50.toFixed(2)})`);
+                playAlertBeep();
+                lastEmaAlertTime = now;
+                return;
+            } else if (prevEma20 >= prevEma50 && ema20 < ema50) {
+                showNotification(`📉 Death Cross! ${ticker} EMA20 ($${ema20.toFixed(2)}) ตัดลงต่ำกว่า EMA50 ($${ema50.toFixed(2)})`);
+                playAlertBeep();
+                lastEmaAlertTime = now;
+                return;
+            }
+        }
+    }
+
+    // ============================================================
     //  WEBSOCKET (Real-time + Alert Check)
     // ============================================================
     function connectFinnhubWebSocket() {
@@ -582,6 +633,11 @@
         if (globalCachedHigh14 && globalCachedLow14 && ticker === currentTicker) {
             updateMarketStatus(price, isNaN(rsi) ? 50 : rsi, 0, 0, 0, globalCachedLow14, globalCachedHigh14);
         }
+
+        // ✅ ตรวจสอบ EMA Alert
+        if (ticker === currentTicker) {
+            checkEmaAlerts(price, ticker);
+        }
     }
 
     // ============================================================
@@ -633,6 +689,14 @@
             let longDcaLower = Math.min(currentEma3, low14);
             let longDcaUpper = currentEma3 * 1.02;
             if (latestClose < currentEma3) { longDcaLower = low14 * 0.97; longDcaUpper = currentEma3; }
+
+            // ✅ อัปเดตค่า EMA สำหรับ Alert
+            globalPrevEmaValues.ema20 = globalEmaValues.ema20;
+            globalEmaValues.ema20 = currentEma1;
+            globalPrevEmaValues.ema50 = globalEmaValues.ema50;
+            globalEmaValues.ema50 = currentEma2;
+            globalPrevEmaValues.ema200 = globalEmaValues.ema200;
+            globalEmaValues.ema200 = currentEma3;
 
             const extDiv = document.getElementById('w-ext-container');
             if (meta) {
@@ -1007,7 +1071,7 @@
     function initApp() {
         initTabs();
 
-        // ✅ ปุ่มขออนุญาตแจ้งเตือน
+        // ปุ่มขออนุญาตแจ้งเตือน
         document.getElementById('requestNotifBtn')?.addEventListener('click', function() {
             requestNotificationPermission();
         });
@@ -1037,7 +1101,7 @@
         loadAlerts();
         updateAlertBadge();
 
-        // ✅ อัปเดตสถานะการแจ้งเตือน
+        // อัปเดตสถานะการแจ้งเตือน
         updateNotificationStatus();
 
         // Search
